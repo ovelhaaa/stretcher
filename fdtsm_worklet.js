@@ -7,8 +7,9 @@ class FDTSMProcessor extends AudioWorkletProcessor {
         this.pv = null;
 
         // Define sizes. In PhaseVocoderFDTSM we typically process hop_size at a time.
-        // Or we just feed the available samples. Let's allocate buffers for 128 samples (AudioWorklet block size).
-        this.blockSize = 128;
+        // Or we just feed the available samples. We allocate a safe maximum buffer size
+        // to avoid real-time memory allocations in the process method.
+        this.maxBlockSize = 1024;
 
         this.port.onmessage = (event) => {
             if (event.data.type === 'params' && this.pv) {
@@ -27,11 +28,11 @@ class FDTSMProcessor extends AudioWorkletProcessor {
             this.pv = new this.wasmInstance.PhaseVocoderFDTSM(44100);
 
             // Allocate memory in WASM for input and output buffers
-            this.inputPtr = this.wasmInstance._malloc(this.blockSize * 4); // 4 bytes per float
-            this.inputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.inputPtr, this.blockSize);
+            this.inputPtr = this.wasmInstance._malloc(this.maxBlockSize * 4); // 4 bytes per float
+            this.inputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.inputPtr, this.maxBlockSize);
 
-            this.outputPtr = this.wasmInstance._malloc(this.blockSize * 4);
-            this.outputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.outputPtr, this.blockSize);
+            this.outputPtr = this.wasmInstance._malloc(this.maxBlockSize * 4);
+            this.outputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.outputPtr, this.maxBlockSize);
 
             this.wasmLoaded = true;
         });
@@ -55,21 +56,11 @@ class FDTSMProcessor extends AudioWorkletProcessor {
 
         if (!inputChannel || !outputChannel) return true;
 
-        // Ensure block size matches (typically 128)
-        const size = inputChannel.length;
-        if (size > this.blockSize) {
-            // Reallocate if somehow larger
-            this.wasmInstance._free(this.inputPtr);
-            this.wasmInstance._free(this.outputPtr);
-            this.blockSize = size;
-            this.inputPtr = this.wasmInstance._malloc(this.blockSize * 4);
-            this.inputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.inputPtr, this.blockSize);
-            this.outputPtr = this.wasmInstance._malloc(this.blockSize * 4);
-            this.outputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.outputPtr, this.blockSize);
-        }
+        // Prevent exceeding allocated size to avoid dynamic allocations
+        const size = Math.min(inputChannel.length, this.maxBlockSize);
 
         // Copy JS input to WASM heap
-        this.inputHeap.set(inputChannel);
+        this.inputHeap.set(inputChannel.subarray(0, size));
 
         // Call the bound C++ function pushInputWasm
         this.wasmInstance.pushInputWasm(this.pv, this.inputPtr, size);
