@@ -72,7 +72,7 @@ class FDTSMProcessor extends AudioWorkletProcessor {
         // Copy WASM heap output to JS output
         if (generatedSamples > 0) {
             // Fill with what was generated
-            outputChannel.set(new Float32Array(this.wasmInstance.HEAPF32.buffer, this.outputPtr, generatedSamples));
+            outputChannel.set(this.outputHeap.subarray(0, generatedSamples));
             // Fill rest with 0s if generated < size
             for (let i = generatedSamples; i < size; i++) {
                 outputChannel[i] = 0;
