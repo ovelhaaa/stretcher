@@ -21,10 +21,8 @@ class FDTSMProcessor extends AudioWorkletProcessor {
         // Initialize WASM Module
         Module().then((instance) => {
             this.wasmInstance = instance;
-            // The C++ class takes sample rate, hop_size=256, frame_size=1024, max_delay=4096 (depends on implementation)
-            // But from the bindings, the constructor takes one argument: int (likely maxDelay)
-            // Let's assume it initializes with default 1024 / 256 for frame/hop, or we can check PhaseVocoderFDTSM.h if needed.
-            // Let's pass 4096 as maxDelay based on the fact that constructor takes 1 int.
+            // The C++ class takes sample rate in its constructor.
+            // Standard AudioContext uses 44100Hz as default in most browsers unless specified otherwise.
             this.pv = new this.wasmInstance.PhaseVocoderFDTSM(44100);
 
             // Allocate memory in WASM for input and output buffers
@@ -72,7 +70,7 @@ class FDTSMProcessor extends AudioWorkletProcessor {
         // Copy WASM heap output to JS output
         if (generatedSamples > 0) {
             // Fill with what was generated
-            outputChannel.set(this.outputHeap.subarray(0, generatedSamples));
+            outputChannel.set(new Float32Array(this.wasmInstance.HEAPF32.buffer, this.outputPtr, generatedSamples));
             // Fill rest with 0s if generated < size
             for (let i = generatedSamples; i < size; i++) {
                 outputChannel[i] = 0;
