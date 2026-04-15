@@ -86,6 +86,7 @@ audioFileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (audioPlayer.src.startsWith('blob:')) URL.revokeObjectURL(audioPlayer.src);
     const fileUrl = URL.createObjectURL(file);
     audioPlayer.src = fileUrl;
     audioPlayer.style.display = 'block';
