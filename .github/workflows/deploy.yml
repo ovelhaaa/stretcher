@@ -1,0 +1,66 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v13
+        with:
+          version: latest
+          actions-cache-folder: 'emsdk-cache'
+
+      - name: Compile C++ to WebAssembly
+        run: |
+          mkdir -p dist
+          # Compile C++ source to WASM using emcc
+          emcc src/PhaseVocoderFDTSM.cpp src/bindings.cpp \
+               -o dist/fdtsm.js \
+               -lembind \
+               -O3 \
+               -s EXPORT_ES6=1 \
+               -s MODULARIZE=1 \
+               -s ENVIRONMENT=worker \
+               -s ALLOW_MEMORY_GROWTH=1 \
+               -s MALLOC=emmalloc \
+               -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'
+
+      - name: Move Web Assets
+        run: |
+          cp index.html dist/
+          cp app.js dist/
+          cp fdtsm_worklet.js dist/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: './dist'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
