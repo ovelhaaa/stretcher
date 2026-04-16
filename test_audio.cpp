@@ -15,8 +15,8 @@ int main() {
 
     // Generate test signal: Mix of low freq (100Hz) and high freq (1000Hz)
     for (int i = 0; i < numSamples; ++i) {
-        float lowFreq = sin(2.0 * M_PI * 100.0 * i / sampleRate);
-        float highFreq = sin(2.0 * M_PI * 1000.0 * i / sampleRate);
+        float lowFreq = sin(2.0 * 3.14159265358979323846 * 100.0 * i / sampleRate);
+        float highFreq = sin(2.0 * 3.14159265358979323846 * 1000.0 * i / sampleRate);
         input[i] = 0.5f * (lowFreq + highFreq);
     }
 
