@@ -2,12 +2,10 @@
 if (typeof URL === 'undefined') {
     globalThis.URL = class URL {
         constructor(url, base) {
-            this.href = (url.includes('://') || url.startsWith('//')) ? url : (base ? base.replace(/\/+$/, '') + '/' + url : url);
+            this.href = base ? base + '/' + url : url;
         }
     };
 }
-
-import Module from './fdtsm.js';
 
 class FDTSMProcessor extends AudioWorkletProcessor {
     constructor() {
@@ -28,24 +26,27 @@ class FDTSMProcessor extends AudioWorkletProcessor {
         };
 
         // Initialize WASM Module
-        Module({
-            locateFile: function(path, scriptDirectory) {
-                return path; // Expect WASM to be in the same directory requested by worklet
-            }
-        }).then((instance) => {
-            this.wasmInstance = instance;
-            // The C++ class takes sample rate in its constructor.
-            // Standard AudioContext uses 44100Hz as default in most browsers unless specified otherwise.
-            this.pv = new this.wasmInstance.PhaseVocoderFDTSM(44100);
+        import('./fdtsm.js').then((module) => {
+            const Module = module.default;
+            Module({
+                locateFile: function(path, scriptDirectory) {
+                    return path; // Expect WASM to be in the same directory requested by worklet
+                }
+            }).then((instance) => {
+                this.wasmInstance = instance;
+                // The C++ class takes sample rate in its constructor.
+                // Standard AudioContext uses 44100Hz as default in most browsers unless specified otherwise.
+                this.pv = new this.wasmInstance.PhaseVocoderFDTSM(44100);
 
-            // Allocate memory in WASM for input and output buffers
-            this.inputPtr = this.wasmInstance._malloc(this.maxBlockSize * 4); // 4 bytes per float
-            this.inputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.inputPtr, this.maxBlockSize);
+                // Allocate memory in WASM for input and output buffers
+                this.inputPtr = this.wasmInstance._malloc(this.maxBlockSize * 4); // 4 bytes per float
+                this.inputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.inputPtr, this.maxBlockSize);
 
-            this.outputPtr = this.wasmInstance._malloc(this.maxBlockSize * 4);
-            this.outputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.outputPtr, this.maxBlockSize);
+                this.outputPtr = this.wasmInstance._malloc(this.maxBlockSize * 4);
+                this.outputHeap = new Float32Array(this.wasmInstance.HEAPF32.buffer, this.outputPtr, this.maxBlockSize);
 
-            this.wasmLoaded = true;
+                this.wasmLoaded = true;
+            });
         });
     }
 
