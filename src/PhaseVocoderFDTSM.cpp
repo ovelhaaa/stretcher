@@ -113,20 +113,26 @@ void PhaseVocoderFDTSM::pushInput(const float* input, int numSamples) {
 int PhaseVocoderFDTSM::getOutput(float* output, int maxSamples) {
     int samplesWritten = 0;
     
-    // We output a sample only if both streams have generated one, and we sum them
-    while (samplesWritten < maxSamples && outFifoFill1 > 0 && outFifoFill2 > 0) {
-        float s1 = outFifo[outFifoReadPtr1];
-        float s2 = outFifo2[outFifoReadPtr2];
+    // We output a sample if either stream has generated one, and we sum them
+    while (samplesWritten < maxSamples && (outFifoFill1 > 0 || outFifoFill2 > 0)) {
+        float s1 = 0.0f;
+        float s2 = 0.0f;
+        
+        if (outFifoFill1 > 0) {
+            s1 = outFifo[outFifoReadPtr1];
+            outFifo[outFifoReadPtr1] = 0.0f; // Clear after reading for OLA
+            outFifoReadPtr1 = (outFifoReadPtr1 + 1) % outFifo.size();
+            outFifoFill1--;
+        }
+        
+        if (outFifoFill2 > 0) {
+            s2 = outFifo2[outFifoReadPtr2];
+            outFifo2[outFifoReadPtr2] = 0.0f;
+            outFifoReadPtr2 = (outFifoReadPtr2 + 1) % outFifo2.size();
+            outFifoFill2--;
+        }
         
         output[samplesWritten++] = s1 + s2;
-        
-        outFifo[outFifoReadPtr1] = 0.0f; // Clear after reading for OLA
-        outFifo2[outFifoReadPtr2] = 0.0f; 
-        
-        outFifoReadPtr1 = (outFifoReadPtr1 + 1) % outFifo.size();
-        outFifoReadPtr2 = (outFifoReadPtr2 + 1) % outFifo2.size();
-        outFifoFill1--;
-        outFifoFill2--;
     }
     return samplesWritten;
 }
@@ -180,14 +186,14 @@ void PhaseVocoderFDTSM::processFrame() {
     // OLA Region 1
     int writePtr1 = (outFifoReadPtr1 + outFifoFill1) % outFifo.size();
     for (int i = 0; i < N; ++i) {
-        outFifo[(writePtr1 + i) % outFifo.size()] += Y1[i].real() * window[i] / hopS1;
+        outFifo[(writePtr1 + i) % outFifo.size()] += Y1[i].real() * window[i] * (hopS1 * 8.0f) / (3.0f * N);
     }
     outFifoFill1 += hopS1;
     
     // OLA Region 2
     int writePtr2 = (outFifoReadPtr2 + outFifoFill2) % outFifo2.size();
     for (int i = 0; i < N; ++i) {
-        outFifo2[(writePtr2 + i) % outFifo2.size()] += Y2[i].real() * window[i] / hopS2;
+        outFifo2[(writePtr2 + i) % outFifo2.size()] += Y2[i].real() * window[i] * (hopS2 * 8.0f) / (3.0f * N);
     }
     outFifoFill2 += hopS2;
 }
