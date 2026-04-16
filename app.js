@@ -2,6 +2,7 @@ let audioContext;
 let fdtsmNode;
 let mediaStreamSource;
 let mediaElementSource;
+let activeMicStream;
 
 const btnMic = document.getElementById('btn-mic');
 const btnPlay = document.getElementById('btn-play');
@@ -37,7 +38,7 @@ async function initAudio() {
 
     } catch (e) {
         console.error('Erro ao carregar AudioWorklet:', e);
-        alert('Erro ao iniciar o processador de áudio. Verifique o console. Lembre-se de usar um servidor local!');
+        alert('Erro ao iniciar o processador de áudio. Verifica a consola. Lembra-te de usar um servidor local!');
     }
 }
 
@@ -55,13 +56,22 @@ btnMic.addEventListener('click', async () => {
     }
 
     try {
+        if (activeMicStream) {
+            activeMicStream.getTracks().forEach(track => track.stop());
+            activeMicStream = null;
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({ audio: {
             echoCancellation: false,
             noiseSuppression: false,
             autoGainControl: false
         }});
+        activeMicStream = stream;
 
-        if (mediaStreamSource) mediaStreamSource.disconnect();
+        if (mediaStreamSource) {
+            mediaStreamSource.disconnect();
+            mediaStreamSource = null;
+        }
         if (mediaElementSource) mediaElementSource.disconnect();
 
         mediaStreamSource = audioContext.createMediaStreamSource(stream);
@@ -71,8 +81,8 @@ btnMic.addEventListener('click', async () => {
         audioPlayer.style.display = 'none';
         audioPlayer.pause();
     } catch (err) {
-        console.error('Erro ao acessar o microfone:', err);
-        alert('Não foi possível acessar o microfone.');
+        console.error('Erro ao aceder ao microfone:', err);
+        alert('Não foi possível aceder ao microfone.');
     }
 });
 
@@ -92,6 +102,11 @@ audioFileInput.addEventListener('change', async (e) => {
     // Desliga o microfone caso esteja ligado
     if (mediaStreamSource) {
         mediaStreamSource.disconnect();
+        mediaStreamSource = null;
+        if (activeMicStream) {
+            activeMicStream.getTracks().forEach(track => track.stop());
+            activeMicStream = null;
+        }
         btnMic.classList.remove('active');
     }
 
