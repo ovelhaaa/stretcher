@@ -2,7 +2,7 @@
 if (typeof URL === 'undefined') {
     globalThis.URL = class URL {
         constructor(url, base) {
-            this.href = base ? base + '/' + url : url;
+            this.href = (url.includes('://') || url.startsWith('//')) ? url : (base ? base.replace(/\/+$/, '') + '/' + url : url);
         }
     };
 }
