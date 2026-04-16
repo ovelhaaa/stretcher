@@ -1,3 +1,12 @@
+// Polyfill URL for AudioWorkletGlobalScope if needed
+if (typeof URL === 'undefined') {
+    globalThis.URL = class URL {
+        constructor(url, base) {
+            this.href = base ? base + '/' + url : url;
+        }
+    };
+}
+
 import Module from './fdtsm.js';
 
 class FDTSMProcessor extends AudioWorkletProcessor {
@@ -19,7 +28,11 @@ class FDTSMProcessor extends AudioWorkletProcessor {
         };
 
         // Initialize WASM Module
-        Module().then((instance) => {
+        Module({
+            locateFile: function(path, scriptDirectory) {
+                return path; // Expect WASM to be in the same directory requested by worklet
+            }
+        }).then((instance) => {
             this.wasmInstance = instance;
             // The C++ class takes sample rate in its constructor.
             // Standard AudioContext uses 44100Hz as default in most browsers unless specified otherwise.
