@@ -71,8 +71,8 @@ btnMic.addEventListener('click', async () => {
         audioPlayer.style.display = 'none';
         audioPlayer.pause();
     } catch (err) {
-        console.error('Erro ao aceder ao microfone:', err);
-        alert('Não foi possível aceder ao microfone.');
+        console.error('Erro ao acessar o microfone:', err);
+        alert('Não foi possível acessar o microfone.');
     }
 });
 
