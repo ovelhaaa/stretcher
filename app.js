@@ -37,7 +37,7 @@ async function initAudio() {
 
     } catch (e) {
         console.error('Erro ao carregar AudioWorklet:', e);
-        alert('Erro ao iniciar o processador de áudio. Verifica a consola. Lembra-te de usar um servidor local!');
+        alert('Erro ao iniciar o processador de áudio. Verifique o console. Lembre-se de usar um servidor local!');
     }
 }
 
