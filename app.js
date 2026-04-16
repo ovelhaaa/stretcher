@@ -19,12 +19,11 @@ async function initAudio() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
 
     try {
-        // We'll load the worklet from the root. Adjust path if served in a subfolder on GitHub Pages
         const workletUrl = new URL('fdtsm_worklet.js', window.location.href);
         await audioContext.audioWorklet.addModule(workletUrl);
 
         fdtsmNode = new AudioWorkletNode(audioContext, 'fdtsm-processor', {
-            outputChannelCount: [1], // Mono output
+            outputChannelCount: [1], // Saída Mono
         });
 
         fdtsmNode.connect(audioContext.destination);
@@ -33,12 +32,12 @@ async function initAudio() {
         btnPlay.classList.add('active');
         btnPlay.disabled = true;
 
-        // Initialize parameters in worklet
+        // Inicializa os parâmetros no worklet
         updateParams();
 
     } catch (e) {
         console.error('Erro ao carregar AudioWorklet:', e);
-        alert('Erro ao iniciar o processador de áudio. Verifique o console.');
+        alert('Erro ao iniciar o processador de áudio. Verifica a consola. Lembra-te de usar um servidor local!');
     }
 }
 
@@ -72,8 +71,8 @@ btnMic.addEventListener('click', async () => {
         audioPlayer.style.display = 'none';
         audioPlayer.pause();
     } catch (err) {
-        console.error('Erro ao acessar microfone:', err);
-        alert('Não foi possível acessar o microfone.');
+        console.error('Erro ao aceder ao microfone:', err);
+        alert('Não foi possível aceder ao microfone.');
     }
 });
 
@@ -90,18 +89,27 @@ audioFileInput.addEventListener('change', async (e) => {
     audioPlayer.src = fileUrl;
     audioPlayer.style.display = 'block';
 
+    // Desliga o microfone caso esteja ligado
     if (mediaStreamSource) {
         mediaStreamSource.disconnect();
         btnMic.classList.remove('active');
     }
-    if (mediaElementSource) mediaElementSource.disconnect();
 
-    mediaElementSource = audioContext.createMediaElementSource(audioPlayer);
+    // CORREÇÃO 1: Evitar o erro de recriar o MediaElementSource
+    // Só criamos o nó se ainda não tiver sido criado.
+    if (!mediaElementSource) {
+        mediaElementSource = audioContext.createMediaElementSource(audioPlayer);
+    } else {
+        mediaElementSource.disconnect(); // Apenas o desligamos para limpar a rota anterior
+    }
+
+    // Conectamos a música carregada ao nosso efeito (fdtsmNode)
     mediaElementSource.connect(fdtsmNode);
 
-    // Also connect to destination so user can hear original if we bypass,
-    // but right now we route it through fdtsmNode only.
-    // If you want original + processed, connect both. Let's stick to processed only.
+    // CORREÇÃO 2: Damos a instrução para a música começar a tocar
+    audioPlayer.play().catch(erro => {
+        console.log("Erro ao tentar tocar automaticamente:", erro);
+    });
 });
 
 function updateParams() {
